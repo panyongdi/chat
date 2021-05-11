@@ -31,9 +31,9 @@ spring:
     #配置数据源
     datasource:
       #给每个数据源去别名，下面的ds1，ds2任意取名
-      names: ds1,ds2
+      names: ds0,ds1
       #给master-ds1每个数据源配置数据库连接信息
-      ds1:
+      ds0:
         type: com.alibaba.druid.pool.DruidDataSource
         driver-class-name: com.mysql.jdbc.Driver
         url: jdbc:mysql://127.0.0.1:3306/webchat?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2b8
@@ -41,7 +41,7 @@ spring:
         password: root
         maxPoolSize: 100
         miniPoolSize: 5
-      ds2:
+      ds1:
         type: com.alibaba.druid.pool.DruidDataSource
         driver-class-name: com.mysql.jdbc.Driver
         url: jdbc:mysql://127.0.0.1:3306/webchat1?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2b8
@@ -52,12 +52,62 @@ spring:
 
     #配置默认写入的操作
     sharding:
-    #配置默认数据源，主要用来写入，如果不配置，此时三个节点都会被当成从节点，新增/修改/删除时候会报错
-      default-data-source-name: ds1
+      #-------------------------------------------------------------单独对某些表的分片策略（可配置多个）------------------------------------------------------------------
+#      #对整个数据进行分库算法
+#      default-database-strategy:
+#        #行分片表达式
+#        inline:
+#          #分片列名称
+#          sharding-column: id
+#          algorithm-expression: ds$->{id%2}
+        #基于标记的sharding分片,需要实现HintShardingAlgorithm接口，再接口中实现具体的分片规则
+#        hint:
+#          algorithm-class-name: com.chat.shardingjdbc.algorithm.TestDatabaseAlgorithm
 
-    # 配置数据源的读写分离，但数据库一定要做主从复制
-      master-slave-rules:
-        ds1:
-          master-data-source-name: ds1 # 主库数据源名称
-          slave-data-source-names: ds2 # 从库数据源名称列表
+      #-------------------------------------------------------------单独对某些表的分片策略（可配置多个）------------------------------------------------------------------
+      #表的分片策略
+      tables:
+        orders:
+          #由数据源名 + 表名组成，以小数点分隔。多个表以逗号分隔，支持inline表达式。缺省表示使用已知数据源与逻辑表名称生成数据节点。
+          #用于广播表（即每个库中都需要一个同样的表用于关联查询，多为字典表）或只分库不分表且所有库的表结构完全一致的情况
+          actual-data-nodes: ds$->{0..1}.orders_$->{0..1},ds$->{0..1}.orders_$->{[202104,202103]}
+          database-strategy:
+            #使用标准分片策略，能自定义分片算法
+            standard:
+              sharding-column: id
+              precise-algorithm-class-name: com.chat.shardingjdbc.algorithm.TestDatabaseAlgorithm
+#            inline:
+#              sharding-column: id
+#              algorithm-expression: ds$->{id%2}
+
+          #指定表分片的列
+          table-strategy:
+            #使用标准分片策略，能自定义分片算法
+            standard:
+              sharding-column: createTime
+              precise-algorithm-class-name: com.chat.shardingjdbc.algorithm.TestTableAlgorithm
+#            inline:
+#              sharding-column: id
+#              #这里不能跟分库策略一样，否则会导致有一半数据表没有机会插入数据
+#              algorithm-expression: orders_$->{(id%5)%2}
+
+
+
+
+          #配置自动生成主键。生成分布式id，防止主键重复
+          key-generator:
+            column: id
+            #使用雪花算法
+            type: SNOWFLAKE
+
+#    #配置默认数据源，主要用来写入，如果不配置，此时三个节点都会被当成从节点，新增/修改/删除时候会报错
+#      default-data-source-name: ds1
+#
+#    # 配置数据源的读写分离，但数据库一定要做主从复制
+#      master-slave-rules:
+#        ds1:
+#          master-data-source-name: ds1 # 主库数据源名称
+#          slave-data-source-names: ds2 # 从库数据源名称列表
+
+
 

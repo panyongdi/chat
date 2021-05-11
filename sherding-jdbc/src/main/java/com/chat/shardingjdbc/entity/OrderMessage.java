@@ -1,8 +1,7 @@
-package com.chat.shardingjdbc.com.shardingjdbc.entity;
+package com.chat.shardingjdbc.entity;
 
 import lombok.Data;
 
-import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.Date;
 
